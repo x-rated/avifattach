@@ -16,7 +16,6 @@ Converts uploaded image attachments and avatars to AVIF with PHP's GD (quality 5
 
 ## Notes
 - The original file is **not** kept.
-- Already uploaded images can be converted with the companion extension `slamb/avifmigrate`.
 
 ## License
 GPL-2.0-only, see `license.txt`.
