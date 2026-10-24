@@ -28,5 +28,12 @@ jobs:
           cd epv
           composer install --no-interaction --no-progress
 
+      # EPV expects the package layout vendor/extension/composer.json (same as inside the zip for the extension DB)
+      - name: Build package layout
+        run: |
+          mkdir -p pkg/slamb/avifattach
+          rsync -a --exclude='.git' --exclude='.github' ext/ pkg/slamb/avifattach/
+          find pkg -maxdepth 3 | sort
+
       - name: Run EPV
-        run: php epv/src/EPV.php run --dir="$GITHUB_WORKSPACE/ext" --debug
+        run: php epv/src/EPV.php run --dir="$GITHUB_WORKSPACE/pkg" --debug
