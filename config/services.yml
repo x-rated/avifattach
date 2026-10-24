@@ -1,0 +1,8 @@
+services:
+    slamb.avifattach.listener:
+        class: slamb\avifattach\event\listener
+        arguments:
+            - '@config'
+            - '%core.root_path%'
+        tags:
+            - { name: event.listener }

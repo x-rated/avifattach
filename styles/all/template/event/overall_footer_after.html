@@ -1,0 +1,18 @@
+<!-- IF S_PLUPLOAD -->
+<script>
+/* AVIF Attachments: the file is converted on the server after the upload, so the size plupload shows
+   (the original file) is replaced by the real size the server reports in its JSON response.
+   Works with every style that uses the stock prosilver attachment row (.file-size inside #<file id>). */
+window.addEventListener('load', function () {
+	var u = window.phpbb && phpbb.plupload && phpbb.plupload.uploader;
+	if (!u || !window.plupload) { return; }
+	u.bind('FileUploaded', function (up, file, resp) {
+		try {
+			var d = JSON.parse(resp.response).data[0];
+			var el = d && d.filesize ? document.querySelector('#' + file.id + ' .file-size') : null;
+			if (el) { el.textContent = plupload.formatSize(parseInt(d.filesize, 10)); }
+		} catch (e) {}
+	});
+});
+</script>
+<!-- ENDIF -->
