@@ -12,7 +12,14 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 class listener implements EventSubscriberInterface
 {
+	/** Photos (JPEG, lossy WebP): 4:2:0 colour is fine and keeps the files small */
 	const QUALITY = 50;
+
+	/**
+	 * Screenshots and graphics (PNG, BMP, GIF, lossless WebP): GD switches the encoder to full-resolution
+	 * colour (4:4:4) from quality 90, which removes the colour fringes around coloured text.
+	 */
+	const QUALITY_SHARP = 90;
 
 	/** @var \phpbb\config\config */
 	protected $config;
@@ -34,6 +41,31 @@ class listener implements EventSubscriberInterface
 			'core.ucp_profile_avatar_sql'  => 'convert_avatar',
 			'core.acp_users_avatar_sql'    => 'convert_avatar',
 		];
+	}
+
+	/**
+	 * Quality by source type: lossless sources (screenshots, graphics) are encoded in 4:4:4, photos in 4:2:0.
+	 */
+	protected function quality_for($ext, $raw)
+	{
+		if (in_array($ext, ['png', 'bmp', 'gif'], true))
+		{
+			return self::QUALITY_SHARP;
+		}
+		if ($ext === 'webp' && strpos(substr($raw, 0, 64), 'VP8L') !== false)
+		{
+			return self::QUALITY_SHARP;
+		}
+		return self::QUALITY;
+	}
+
+	/**
+	 * True when an AVIF file stores full-resolution colour (read from its av1C box).
+	 */
+	protected function is_444($head)
+	{
+		$p = strpos($head, 'av1C');
+		return $p !== false && isset($head[$p + 6]) && (ord($head[$p + 6]) & 0x0C) === 0;
 	}
 
 	protected function supported()
@@ -90,7 +122,7 @@ class listener implements EventSubscriberInterface
 
 		// re-encoding drops all metadata (EXIF, GPS, ICC, XMP)
 		$tmp = $path . '.avif.tmp';
-		$ok = @imageavif($img, $tmp, self::QUALITY);
+		$ok = @imageavif($img, $tmp, $this->quality_for($ext, $raw));
 		unset($img);
 
 		clearstatcache(true, $tmp);
@@ -174,7 +206,7 @@ class listener implements EventSubscriberInterface
 		$h = imagesy($img);
 
 		$tmp = $path . '.avif.tmp';
-		$ok = @imageavif($img, $tmp, self::QUALITY);
+		$ok = @imageavif($img, $tmp, $this->quality_for($ext, $raw));
 		unset($img);
 
 		clearstatcache(true, $tmp);
@@ -200,7 +232,7 @@ class listener implements EventSubscriberInterface
 	{
 		$source = $event['source'];
 
-		$head = @file_get_contents($source, false, null, 0, 16);
+		$head = @file_get_contents($source, false, null, 0, 512);
 		if ($head === false || substr($head, 4, 8) !== 'ftypavif' || !$this->supported())
 		{
 			return;
@@ -223,7 +255,8 @@ class listener implements EventSubscriberInterface
 		imagefill($new, 0, 0, imagecolorallocatealpha($new, 0, 0, 0, 127));
 		imagecopyresampled($new, $img, 0, 0, 0, 0, $nw, $nh, $w, $h);
 
-		if (@imageavif($new, $event['destination'], self::QUALITY))
+		// keep full-resolution colour in the thumbnail when the original has it
+		if (@imageavif($new, $event['destination'], $this->is_444($head) ? self::QUALITY_SHARP : self::QUALITY))
 		{
 			$event['thumbnail_created'] = true;
 		}
