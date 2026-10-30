@@ -70,7 +70,7 @@ class listener implements EventSubscriberInterface
 
 	protected function supported()
 	{
-		return function_exists('imageavif') && function_exists('imagecreatefromavif');
+		return \slamb\avifattach\core\avif_codec::supported();
 	}
 
 	/**
@@ -122,7 +122,7 @@ class listener implements EventSubscriberInterface
 
 		// re-encoding drops all metadata (EXIF, GPS, ICC, XMP)
 		$tmp = $path . '.avif.tmp';
-		$ok = @imageavif($img, $tmp, $this->quality_for($ext, $raw));
+		$ok = \slamb\avifattach\core\avif_codec::encode($img, $tmp, $this->quality_for($ext, $raw));
 		unset($img);
 
 		clearstatcache(true, $tmp);
@@ -206,7 +206,7 @@ class listener implements EventSubscriberInterface
 		$h = imagesy($img);
 
 		$tmp = $path . '.avif.tmp';
-		$ok = @imageavif($img, $tmp, $this->quality_for($ext, $raw));
+		$ok = \slamb\avifattach\core\avif_codec::encode($img, $tmp, $this->quality_for($ext, $raw));
 		unset($img);
 
 		clearstatcache(true, $tmp);
@@ -238,7 +238,7 @@ class listener implements EventSubscriberInterface
 			return;
 		}
 
-		$img = @imagecreatefromavif($source);
+		$img = \slamb\avifattach\core\avif_codec::decode($source);
 		if ($img === false)
 		{
 			return;
@@ -256,7 +256,7 @@ class listener implements EventSubscriberInterface
 		imagecopyresampled($new, $img, 0, 0, 0, 0, $nw, $nh, $w, $h);
 
 		// keep full-resolution colour in the thumbnail when the original has it
-		if (@imageavif($new, $event['destination'], $this->is_444($head) ? self::QUALITY_SHARP : self::QUALITY))
+		if (\slamb\avifattach\core\avif_codec::encode($new, $event['destination'], $this->is_444($head) ? self::QUALITY_SHARP : self::QUALITY))
 		{
 			$event['thumbnail_created'] = true;
 		}
